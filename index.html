@@ -551,8 +551,8 @@
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
-            // You need to replace 'YOUR_MAPBOX_ACCESS_TOKEN' with an actual Mapbox token
-            mapboxgl.accessToken = 'pk.eyJ1Ijoic3Vnb2lpNzciLCJhIjoiY21kcWw4NG1wMDhhaTJqcHF0ZWV2MTFraiJ9.6M5RgTQL0YIw5uhodTJXtQ'; // Replace with your token
+            // Valid Mapbox access token
+            mapboxgl.accessToken = 'pk.eyJ1Ijoic3Vnb2lpNzciLCJhIjoiY21kcW0wcXRnMDhiNjJzc2F3bHQ4N3U5OSJ9.5oxDaBSXA453w8ixSwDtbg';
             
             initializeMap();
             setupEventListeners();
@@ -814,16 +814,7 @@
             visitNext();
         }
 
-        // Error handling for missing Mapbox token
-        if (mapboxgl.accessToken === 'pk.eyJ1IjoiZXhhbXBsZSIsImEiOiJjbGV4YW1wbGUifQ.example') {
-            document.getElementById('loading').innerHTML = `
-                <div style="text-align: center; color: #e74c3c;">
-                    <h3>⚠️ Mapbox Token Required</h3>
-                    <p>Please replace the Mapbox access token in the script to use this app.</p>
-                    <p>Get your free token at <a href="https://mapbox.com" target="_blank">mapbox.com</a></p>
-                </div>
-            `;
-        }
+        // App is ready to use with valid Mapbox token!
     </script>
 </body>
 </html>
