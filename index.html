@@ -635,7 +635,7 @@
                 'type': 'symbol',
                 'source': 'landforms',
                 'layout': {
-                    'text-field': ['get', currentLanguage === 'en' ? ['get', 'name', 'en'] : ['get', 'name', 'ko'], ['get', 'name']],
+                    'text-field': ['get', ['literal', currentLanguage], ['get', 'name']],
                     'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
                     'text-size': 12,
                     'text-offset': [0, 2],
@@ -675,7 +675,8 @@
             map.on('mouseenter', 'landforms-layer', (e) => {
                 const feature = e.features[0];
                 const coordinates = feature.geometry.coordinates.slice();
-                const name = feature.properties.name;
+                const nameData = feature.properties.name;
+                const name = typeof nameData === 'string' ? JSON.parse(nameData) : nameData;
 
                 if (activePopup) {
                     activePopup.remove();
@@ -687,7 +688,7 @@
                 })
                 .setLngLat(coordinates)
                 .setHTML(`
-                    <div class="popup-title">${name[currentLanguage]}</div>
+                    <div class="popup-title">${name[currentLanguage] || name.en || 'Unknown'}</div>
                     <div class="popup-subtitle">${currentLanguage === 'en' ? 'Click to learn more' : '자세히 알아보려면 클릭하세요'}</div>
                 `)
                 .addTo(map);
@@ -703,13 +704,15 @@
 
         function showLandformInfo(properties) {
             const panel = document.getElementById('infoPanel');
-            const name = properties.name;
-            const formation = properties.formation;
-            const climate = properties.climate;
+            
+            // Parse JSON strings if needed
+            const name = typeof properties.name === 'string' ? JSON.parse(properties.name) : properties.name;
+            const formation = typeof properties.formation === 'string' ? JSON.parse(properties.formation) : properties.formation;
+            const climate = typeof properties.climate === 'string' ? JSON.parse(properties.climate) : properties.climate;
 
-            document.getElementById('landform-name').textContent = name[currentLanguage];
-            document.getElementById('formation-text').textContent = formation[currentLanguage];
-            document.getElementById('climate-text').textContent = climate[currentLanguage];
+            document.getElementById('landform-name').textContent = name[currentLanguage] || name.en || 'Unknown';
+            document.getElementById('formation-text').textContent = formation[currentLanguage] || formation.en || 'No information available';
+            document.getElementById('climate-text').textContent = climate[currentLanguage] || climate.en || 'No information available';
 
             panel.classList.add('active');
         }
@@ -763,7 +766,7 @@
         function updateMapLabels() {
             if (map.getLayer('landforms-labels')) {
                 map.setLayoutProperty('landforms-labels', 'text-field', 
-                    ['get', currentLanguage, ['get', 'name']]
+                    ['get', ['literal', currentLanguage], ['get', 'name']]
                 );
             }
         }
