@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>South Korea Landforms Explorer</title>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            position: relative;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .lang-toggle {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .lang-toggle:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .about-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .about-btn:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+        }
+
+        .map-container {
+            height: calc(100vh - 70px);
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 350px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transform: translateX(400px);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 100;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .info-panel.active {
+            transform: translateX(0);
+        }
+
+        .info-panel h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 20px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 8px;
+        }
+
+        .info-section {
+            margin-bottom: 15px;
+        }
+
+        .info-section h4 {
+            color: #34495e;
+            margin-bottom: 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .info-section p {
+            color: #555;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .close-btn:hover {
+            background: #c0392b;
+            transform: scale(1.1);
+        }
+
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            font-size: 12px;
+        }
+
+        .legend h4 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            border-radius: 3px;
+            margin-right: 8px;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 1000;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .mapboxgl-popup-content {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .popup-title {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .popup-subtitle {
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+
+        @media (max-width: 768px) {
+            .info-panel {
+                width: calc(100% - 40px);
+                right: 20px;
+                left: 20px;
+                transform: translateY(100%);
+                top: auto;
+                bottom: 20px;
+            }
+
+            .info-panel.active {
+                transform: translateY(0);
+            }
+
+            .title {
+                font-size: 18px;
+            }
+
+            .controls {
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">
+            <span>🗻</span>
+            <span id="app-title">South Korea Landforms Explorer</span>
+        </div>
+        <div class="controls">
+            <button class="lang-toggle" id="langToggle">한국어</button>
+            <a href="#" class="about-btn" id="aboutBtn">About</a>
+        </div>
+    </div>
+
+    <div class="map-container">
+        <div id="map"></div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div id="loading-text">Loading 3D terrain...</div>
+        </div>
+
+        <div class="info-panel" id="infoPanel">
+            <button class="close-btn" id="closeBtn">×</button>
+            <h3 id="landform-name">Select a landform</h3>
+            <div class="info-section">
+                <h4 id="formation-title">Formation</h4>
+                <p id="formation-text">Click on a marker to learn about landform formation.</p>
+            </div>
+            <div class="info-section">
+                <h4 id="climate-title">Climate Impact</h4>
+                <p id="climate-text">Discover how geography affects local weather patterns.</p>
+            </div>
+        </div>
+
+        <div class="legend">
+            <h4 id="legend-title">Landform Types</h4>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #e74c3c;"></div>
+                <span id="legend-volcanic">Volcanic</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #27ae60;"></div>
+                <span id="legend-mountain">Mountain Range</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #3498db;"></div>
+                <span id="legend-water">Water Feature</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #f39c12;"></div>
+                <span id="legend-coastal">Coastal</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #9b59b6;"></div>
+                <span id="legend-special">Special Zone</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Language data
+        const translations = {
+            en: {
+                appTitle: "South Korea Landforms Explorer",
+                about: "About",
+                formationTitle: "Formation",
+                climateTitle: "Climate Impact",
+                legendTitle: "Landform Types",
+                legendVolcanic: "Volcanic",
+                legendMountain: "Mountain Range",
+                legendWater: "Water Feature",
+                legendCoastal: "Coastal",
+                legendSpecial: "Special Zone",
+                loadingText: "Loading 3D terrain...",
+                clickToLearn: "Click on a marker to learn about landform formation.",
+                discoverClimate: "Discover how geography affects local weather patterns."
+            },
+            ko: {
+                appTitle: "대한민국 지형 탐험가",
+                about: "정보",
+                formationTitle: "형성 과정",
+                climateTitle: "기후에 미치는 영향",
+                legendTitle: "지형 유형",
+                legendVolcanic: "화산지형",
+                legendMountain: "산맥",
+                legendWater: "수계",
+                legendCoastal: "해안지형",
+                legendSpecial: "특별지역",
+                loadingText: "3D 지형 로딩 중...",
+                clickToLearn: "마커를 클릭하여 지형 형성에 대해 알아보세요.",
+                discoverClimate: "지형이 지역 기후에 미치는 영향을 알아보세요."
+            }
+        };
+
+        // Landforms data
+        const landformsData = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [126.53, 33.36]
+                    },
+                    "properties": {
+                        "id": "hallasan",
+                        "type": "volcanic",
+                        "name": {
+                            "en": "Hallasan Volcano",
+                            "ko": "한라산"
+                        },
+                        "formation": {
+                            "en": "Formed by volcanic activity over millions of years. The shield volcano built up through repeated basaltic lava flows, creating Jeju Island's distinctive dome shape.",
+                            "ko": "수백만 년에 걸친 화산 활동으로 형성되었습니다. 방패형 화산으로 반복된 현무암 용암 분출로 제주도의 독특한 돔 형태를 만들었습니다."
+                        },
+                        "climate": {
+                            "en": "Creates a vertical climate zone effect. Temperature drops 0.6°C per 100m elevation. Forms orographic precipitation, making the southern slopes wetter than northern areas.",
+                            "ko": "수직 기후대 효과를 만듭니다. 고도 100m마다 기온이 0.6°C 하강합니다. 지형성 강수를 형성하여 남쪽 사면이 북쪽보다 더 습합니다."
+                        }
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [128.7, 37.5]
+                    },
+                    "properties": {
+                        "id": "taebaek",
+                        "type": "mountain",
+                        "name": {
+                            "en": "Taebaek Mountains",
+                            "ko": "태백산맥"
+                        },
+                        "formation": {
+                            "en": "Ancient mountains formed by tectonic uplift and folding of sedimentary rocks during the Mesozoic era. Composed mainly of limestone and granite.",
+                            "ko": "중생대 동안 퇴적암의 지각 융기와 습곡으로 형성된 고대 산맥입니다. 주로 석회암과 화강암으로 구성되어 있습니다."
+                        },
+                        "climate": {
+                            "en": "Acts as a climate barrier, creating the rain shadow effect. Eastern slopes receive more precipitation from Pacific moisture, while western areas are drier.",
+                            "ko": "기후 장벽 역할을 하여 비그늘 효과를 만듭니다. 동쪽 사면은 태평양 수분으로 더 많은 강수를 받고, 서쪽은 더 건조합니다."
+                        }
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [128.5, 35.8]
+                    },
+                    "properties": {
+                        "id": "nakdong",
+                        "type": "water",
+                        "name": {
+                            "en": "Nakdong River",
+                            "ko": "낙동강"
+                        },
+                        "formation": {
+                            "en": "Korea's longest river, carved through tectonic valleys and alluvial plains. Flows from Taebaek Mountains to the Korea Strait, shaped by millions of years of erosion.",
+                            "ko": "한국에서 가장 긴 강으로, 지각 계곡과 충적평야를 관통하여 흐릅니다. 태백산맥에서 한국해협까지 흐르며, 수백만 년의 침식으로 형성되었습니다."
+                        },
+                        "climate": {
+                            "en": "Creates a microclimate with higher humidity along the river valley. Moderates temperature extremes and supports agriculture through irrigation.",
+                            "ko": "강 유역을 따라 높은 습도를 가진 미기후를 만듭니다. 극한 기온을 완화하고 관개를 통해 농업을 지원합니다."
+                        }
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [129.3, 35.2]
+                    },
+                    "properties": {
+                        "id": "ria",
+                        "type": "coastal",
+                        "name": {
+                            "en": "Ria Coastline",
+                            "ko": "리아스식 해안"
+                        },
+                        "formation": {
+                            "en": "Formed when post-glacial sea level rise flooded coastal river valleys, creating deep, narrow inlets and numerous islands along the southern coast.",
+                            "ko": "빙하기 이후 해수면 상승으로 연안 하천 계곡이 침수되어 형성되었으며, 남해안을 따라 깊고 좁은 만과 수많은 섬들을 만들었습니다."
+                        },
+                        "climate": {
+                            "en": "The complex coastline creates sheltered bays with milder microclimates. Protected areas have less wind and more stable temperatures than exposed coasts.",
+                            "ko": "복잡한 해안선이 온화한 미기후를 가진 보호된 만을 만듭니다. 보호된 지역은 노출된 해안보다 바람이 적고 더 안정된 기온을 가집니다."
+                        }
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [127.0, 38.0]
+                    },
+                    "properties": {
+                        "id": "dmz",
+                        "type": "special",
+                        "name": {
+                            "en": "Demilitarized Zone (DMZ)",
+                            "ko": "비무장지대"
+                        },
+                        "formation": {
+                            "en": "A political boundary established in 1953, following natural topographic features like rivers and ridgelines across the Korean peninsula.",
+                            "ko": "1953년에 설정된 정치적 경계로, 한반도를 가로지르는 강과 능선 같은 자연 지형을 따라 형성되었습니다."
+                        },
+                        "climate": {
+                            "en": "Minimal human activity has created a unique ecosystem. The area experiences natural climate patterns without urban heat island effects.",
+                            "ko": "인간 활동이 최소화되어 독특한 생태계를 만들었습니다. 도시 열섬 효과 없이 자연스러운 기후 패턴을 경험합니다."
+                        }
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [126.8, 33.5]
+                    },
+                    "properties": {
+                        "id": "oreum",
+                        "type": "volcanic",
+                        "name": {
+                            "en": "Oreum Volcanic Cones",
+                            "ko": "제주 오름"
+                        },
+                        "formation": {
+                            "en": "Small parasitic volcanic cones formed by localized eruptions on Jeju Island. Created when magma found weak points in the main volcanic structure.",
+                            "ko": "제주도의 국소적 분출로 형성된 작은 기생 화산추입니다. 마그마가 주 화산 구조의 약한 지점을 발견했을 때 만들어졌습니다."
+                        },
+                        "climate": {
+                            "en": "Each oreum creates its own microclimate. Wind patterns change around the cones, creating different moisture and temperature conditions on various slopes.",
+                            "ko": "각 오름은 고유한 미기후를 만듭니다. 화산추 주변의 바람 패턴이 변화하여 다양한 사면에서 서로 다른 습도와 온도 조건을 만듭니다."
+                        }
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [128.0, 36.5]
+                    },
+                    "properties": {
+                        "id": "sobaek",
+                        "type": "mountain",
+                        "name": {
+                            "en": "Sobaek Mountains",
+                            "ko": "소백산맥"
+                        },
+                        "formation": {
+                            "en": "Formed through parallel folding and faulting processes. This younger mountain range was uplifted more recently than the Taebaek Mountains.",
+                            "ko": "평행한 습곡과 단층 과정을 통해 형성되었습니다. 이 젊은 산맥은 태백산맥보다 더 최근에 융기되었습니다."
+                        },
+                        "climate": {
+                            "en": "Creates a transitional climate zone between continental and oceanic influences. Moderates the harsh continental climate from the north.",
+                            "ko": "대륙성과 해양성 영향 사이의 전이 기후대를 만듭니다. 북쪽에서 오는 혹독한 대륙성 기후를 완화합니다."
+                        }
+                    }
+                },
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [128.4, 38.1]
+                    },
+                    "properties": {
+                        "id": "seorak",
+                        "type": "mountain",
+                        "name": {
+                            "en": "Seoraksan",
+                            "ko": "설악산"
+                        },
+                        "formation": {
+                            "en": "Granite peaks formed by intrusive igneous activity and subsequent erosion. The dramatic rocky spires were carved by glacial and water erosion over millions of years.",
+                            "ko": "관입 화성 활동과 그에 따른 침식으로 형성된 화강암 봉우리들입니다. 극적인 암석 첨탑들은 수백만 년에 걸친 빙하와 물의 침식으로 조각되었습니다."
+                        },
+                        "climate": {
+                            "en": "High elevation creates alpine climate conditions. Receives heavy snowfall in winter and has the first autumn colors in Korea due to elevation effects.",
+                            "ko": "높은 고도로 인해 고산 기후 조건을 만듭니다. 겨울에 많은 눈을 받고, 고도 효과로 인해 한국에서 가장 먼저 가을 단풍이 나타납니다."
+                        }
+                    }
+                }
+            ]
+        };
+
+        // Global variables
+        let map;
+        let currentLanguage = 'en';
+        let activePopup = null;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            // You need to replace 'YOUR_MAPBOX_ACCESS_TOKEN' with an actual Mapbox token
+            mapboxgl.accessToken = 'pk.eyJ1IjoiZXhhbXBsZSIsImEiOiJjbGV4YW1wbGUifQ.example'; // Replace with your token
+            
+            initializeMap();
+            setupEventListeners();
+            updateLanguage();
+        });
+
+        function initializeMap() {
+            map = new mapboxgl.Map({
+                container: 'map',
+                style: 'mapbox://styles/mapbox/satellite-streets-v12',
+                center: [127.5, 36.0], // Center of South Korea
+                zoom: 6.5,
+                pitch: 45,
+                bearing: 0,
+                antialias: true
+            });
+
+            map.on('style.load', () => {
+                // Add 3D terrain
+                map.addSource('mapbox-dem', {
+                    'type': 'raster-dem',
+                    'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+                    'tileSize': 512,
+                    'maxzoom': 14
+                });
+
+                map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 });
+
+                // Add landforms markers
+                addLandformsToMap();
+                
+                // Hide loading screen
+                document.getElementById('loading').style.display = 'none';
+            });
+
+            // Add navigation controls
+            map.addControl(new mapboxgl.NavigationControl(), 'top-left');
+            map.addControl(new mapboxgl.FullscreenControl(), 'top-left');
+        }
+
+        function addLandformsToMap() {
+            // Add source
+            map.addSource('landforms', {
+                'type': 'geojson',
+                'data': landformsData
+            });
+
+            // Add markers layer
+            map.addLayer({
+                'id': 'landforms-layer',
+                'type': 'circle',
+                'source': 'landforms',
+                'paint': {
+                    'circle-radius': [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        5, 8,
+                        10, 15
+                    ],
+                    'circle-color': [
+                        'match',
+                        ['get', 'type'],
+                        'volcanic', '#e74c3c',
+                        'mountain', '#27ae60',
+                        'water', '#3498db',
+                        'coastal', '#f39c12',
+                        'special', '#9b59b6',
+                        '#34495e'
+                    ],
+                    'circle-stroke-width': 2,
+                    'circle-stroke-color': '#ffffff',
+                    'circle-opacity': 0.8
+                }
+            });
+
+            // Add labels layer
+            map.addLayer({
+                'id': 'landforms-labels',
+                'type': 'symbol',
+                'source': 'landforms',
+                'layout': {
+                    'text-field': ['get', currentLanguage === 'en' ? ['get', 'name', 'en'] : ['get', 'name', 'ko'], ['get', 'name']],
+                    'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                    'text-size': 12,
+                    'text-offset': [0, 2],
+                    'text-anchor': 'top'
+                },
+                'paint': {
+                    'text-color': '#ffffff',
+                    'text-halo-color': '#000000',
+                    'text-halo-width': 1
+                }
+            });
+
+            // Add click handlers
+            map.on('click', 'landforms-layer', (e) => {
+                const feature = e.features[0];
+                showLandformInfo(feature.properties);
+                
+                // Fly to the clicked feature
+                map.flyTo({
+                    center: feature.geometry.coordinates,
+                    zoom: 8,
+                    pitch: 60,
+                    duration: 2000
+                });
+            });
+
+            // Change cursor on hover
+            map.on('mouseenter', 'landforms-layer', () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+
+            map.on('mouseleave', 'landforms-layer', () => {
+                map.getCanvas().style.cursor = '';
+            });
+
+            // Add popup on hover
+            map.on('mouseenter', 'landforms-layer', (e) => {
+                const feature = e.features[0];
+                const coordinates = feature.geometry.coordinates.slice();
+                const name = feature.properties.name;
+
+                if (activePopup) {
+                    activePopup.remove();
+                }
+
+                activePopup = new mapboxgl.Popup({
+                    closeButton: false,
+                    closeOnClick: false
+                })
+                .setLngLat(coordinates)
+                .setHTML(`
+                    <div class="popup-title">${name[currentLanguage]}</div>
+                    <div class="popup-subtitle">${currentLanguage === 'en' ? 'Click to learn more' : '자세히 알아보려면 클릭하세요'}</div>
+                `)
+                .addTo(map);
+            });
+
+            map.on('mouseleave', 'landforms-layer', () => {
+                if (activePopup) {
+                    activePopup.remove();
+                    activePopup = null;
+                }
+            });
+        }
+
+        function showLandformInfo(properties) {
+            const panel = document.getElementById('infoPanel');
+            const name = properties.name;
+            const formation = properties.formation;
+            const climate = properties.climate;
+
+            document.getElementById('landform-name').textContent = name[currentLanguage];
+            document.getElementById('formation-text').textContent = formation[currentLanguage];
+            document.getElementById('climate-text').textContent = climate[currentLanguage];
+
+            panel.classList.add('active');
+        }
+
+        function setupEventListeners() {
+            // Language toggle
+            document.getElementById('langToggle').addEventListener('click', function() {
+                currentLanguage = currentLanguage === 'en' ? 'ko' : 'en';
+                updateLanguage();
+                updateMapLabels();
+            });
+
+            // Close info panel
+            document.getElementById('closeBtn').addEventListener('click', function() {
+                document.getElementById('infoPanel').classList.remove('active');
+            });
+
+            // About button (placeholder)
+            document.getElementById('aboutBtn').addEventListener('click', function(e) {
+                e.preventDefault();
+                alert(currentLanguage === 'en' ? 
+                    'This app helps students learn about South Korea\'s landforms and their climate effects!' :
+                    '이 앱은 학생들이 대한민국의 지형과 기후에 미치는 영향을 배우는 데 도움을 줍니다!');
+            });
+        }
+
+        function updateLanguage() {
+            const t = translations[currentLanguage];
+            
+            document.getElementById('app-title').textContent = t.appTitle;
+            document.getElementById('aboutBtn').textContent = t.about;
+            document.getElementById('langToggle').textContent = currentLanguage === 'en' ? '한국어' : 'English';
+            document.getElementById('formation-title').textContent = t.formationTitle;
+            document.getElementById('climate-title').textContent = t.climateTitle;
+            document.getElementById('legend-title').textContent = t.legendTitle;
+            document.getElementById('legend-volcanic').textContent = t.legendVolcanic;
+            document.getElementById('legend-mountain').textContent = t.legendMountain;
+            document.getElementById('legend-water').textContent = t.legendWater;
+            document.getElementById('legend-coastal').textContent = t.legendCoastal;
+            document.getElementById('legend-special').textContent = t.legendSpecial;
+            document.getElementById('loading-text').textContent = t.loadingText;
+            
+            // Update info panel default text
+            const infoPanel = document.getElementById('infoPanel');
+            if (!infoPanel.classList.contains('active')) {
+                document.getElementById('formation-text').textContent = t.clickToLearn;
+                document.getElementById('climate-text').textContent = t.discoverClimate;
+            }
+        }
+
+        function updateMapLabels() {
+            if (map.getLayer('landforms-labels')) {
+                map.setLayoutProperty('landforms-labels', 'text-field', 
+                    ['get', currentLanguage, ['get', 'name']]
+                );
+            }
+        }
+
+        // Add some educational animations
+        function animateToRandomLandform() {
+            const features = landformsData.features;
+            const randomFeature = features[Math.floor(Math.random() * features.length)];
+            
+            map.flyTo({
+                center: randomFeature.geometry.coordinates,
+                zoom: 9,
+                pitch: 60,
+                bearing: Math.random() * 360,
+                duration: 3000
+            });
+            
+            setTimeout(() => {
+                showLandformInfo(randomFeature.properties);
+            }, 2000);
+        }
+
+        // Optional: Add a tour mode (can be activated by a button)
+        function startTour() {
+            let currentIndex = 0;
+            const features = landformsData.features;
+            
+            function visitNext() {
+                if (currentIndex >= features.length) {
+                    currentIndex = 0;
+                }
+                
+                const feature = features[currentIndex];
+                map.flyTo({
+                    center: feature.geometry.coordinates,
+                    zoom: 8,
+                    pitch: 50,
+                    duration: 2000
+                });
+                
+                setTimeout(() => {
+                    showLandformInfo(feature.properties);
+                    currentIndex++;
+                    setTimeout(visitNext, 5000);
+                }, 2000);
+            }
+            
+            visitNext();
+        }
+
+        // Error handling for missing Mapbox token
+        if (mapboxgl.accessToken === 'pk.eyJ1IjoiZXhhbXBsZSIsImEiOiJjbGV4YW1wbGUifQ.example') {
+            document.getElementById('loading').innerHTML = `
+                <div style="text-align: center; color: #e74c3c;">
+                    <h3>⚠️ Mapbox Token Required</h3>
+                    <p>Please replace the Mapbox access token in the script to use this app.</p>
+                    <p>Get your free token at <a href="https://mapbox.com" target="_blank">mapbox.com</a></p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
