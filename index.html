@@ -1,4 +1,114 @@
-<!DOCTYPE html>
+function addLandformsToMap() {
+            // Add source
+            map.addSource('landforms', {
+                'type': 'geojson',
+                'data': landformsData
+            });
+
+            // Add highlight source (initially empty)
+            map.addSource('highlight', {
+                'type': 'geojson',
+                'data': {
+                    'type': 'FeatureCollection',
+                    'features': []
+                }
+            });
+
+            // Add highlight layers for different geometry types
+            map.addLayer({
+                'id': 'highlight-line',
+                'type': 'line',
+                'source': 'highlight',
+                'filter': ['==', '$type', 'LineString'],
+                'paint': {
+                    'line-color': '#ff6b6b',
+                    'line-width': 4,
+                    'line-opacity': 0.8
+                }
+            });
+
+            map.addLayer({
+                'id': 'highlight-polygon',
+                'type': 'fill',
+                'source': 'highlight',
+                'filter': ['==', '$type', 'Polygon'],
+                'paint': {
+                    'fill-color': '#ff6b6b',
+                    'fill-opacity': 0.3,
+                    'fill-outline-color': '#ff6b6b'
+                }
+            });
+
+            map.addLayer({
+                'id': 'highlight-polygon-outline',
+                'type': 'line',
+                'source': 'highlight',
+                'filter': ['==', '$type', 'Polygon'],
+                'paint': {
+                    'line-color': '#ff6b6b',
+                    'line-width': 3,
+                    'line-opacity': 0.8
+                }
+            });
+
+            map.addLayer({
+                'id': 'highlight-point',
+                'type': 'circle',
+                'source': 'highlight',
+                'filter': ['==', '$type', 'Point'],
+                'paint': {
+                    'circle-color': '#ff6b6b',
+                    'circle-radius': 12,
+                    'circle-opacity': 0.6,
+                    'circle-stroke-color': '#ffffff',
+                    'circle-stroke-width': 3
+                }
+            });
+
+            // Add markers layer
+            map.addLayer({
+                'id': 'landforms-layer',
+                'type': 'circle',
+                'source': 'landforms',
+                'paint': {
+                    'circle-radius': [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        5, 8,
+                        10, 15
+                    ],
+                    'circle-color': [
+                        'match',
+                        ['get', 'type'],
+                        'volcanic', '#e74c3c',
+                        'mountain', '#27ae60',
+                        'water', '#3498db',
+                        'coastal', '#f39c12',
+                        'special', '#9b59b6',
+                        '#34495e'
+                    ],
+                    'circle-stroke-width': 2,
+                    'circle-stroke-color': '#ffffff',
+                    'circle-opacity': 0.8
+                }
+            });
+
+            // Add labels layer
+            map.addLayer({
+                'id': 'landforms-labels',
+                'type': 'symbol',
+                'source': 'landforms',
+                'layout': {
+                    'text-field': ['get', ['literal', currentLanguage], ['get', 'name']],
+                    'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                    'text-size': 12,
+                    'text-offset': [0, 2],
+                    'text-anchor': 'top'
+                },
+                'paint': {
+                    'text-color': '#ffffff',
+                    'text-halo-color': '#000000<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -353,7 +463,7 @@
             }
         };
 
-        // Landforms data
+        // Enhanced landforms data with geometries for highlighting
         const landformsData = {
             "type": "FeatureCollection",
             "features": [
@@ -366,6 +476,14 @@
                     "properties": {
                         "id": "hallasan",
                         "type": "volcanic",
+                        "zoomLevel": 10,
+                        "highlightGeometry": {
+                            "type": "Polygon",
+                            "coordinates": [[
+                                [126.48, 33.31], [126.58, 33.31], 
+                                [126.58, 33.41], [126.48, 33.41], [126.48, 33.31]
+                            ]]
+                        },
                         "name": {
                             "en": "Hallasan Volcano",
                             "ko": "한라산"
@@ -389,6 +507,14 @@
                     "properties": {
                         "id": "taebaek",
                         "type": "mountain",
+                        "zoomLevel": 7,
+                        "highlightGeometry": {
+                            "type": "LineString",
+                            "coordinates": [
+                                [128.2, 36.8], [128.4, 37.0], [128.6, 37.2], 
+                                [128.8, 37.4], [129.0, 37.6], [129.2, 37.8]
+                            ]
+                        },
                         "name": {
                             "en": "Taebaek Mountains",
                             "ko": "태백산맥"
@@ -412,6 +538,14 @@
                     "properties": {
                         "id": "nakdong",
                         "type": "water",
+                        "zoomLevel": 8,
+                        "highlightGeometry": {
+                            "type": "LineString",
+                            "coordinates": [
+                                [128.8, 37.1], [128.7, 36.8], [128.6, 36.5], [128.5, 36.2],
+                                [128.4, 35.9], [128.3, 35.6], [128.2, 35.3], [128.1, 35.0], [128.0, 34.8]
+                            ]
+                        },
                         "name": {
                             "en": "Nakdong River",
                             "ko": "낙동강"
@@ -435,6 +569,14 @@
                     "properties": {
                         "id": "ria",
                         "type": "coastal",
+                        "zoomLevel": 9,
+                        "highlightGeometry": {
+                            "type": "Polygon",
+                            "coordinates": [[
+                                [128.8, 34.8], [129.8, 34.8], [129.8, 35.6], 
+                                [128.8, 35.6], [128.8, 34.8]
+                            ]]
+                        },
                         "name": {
                             "en": "Ria Coastline",
                             "ko": "리아스식 해안"
@@ -458,6 +600,14 @@
                     "properties": {
                         "id": "dmz",
                         "type": "special",
+                        "zoomLevel": 8,
+                        "highlightGeometry": {
+                            "type": "Polygon",
+                            "coordinates": [[
+                                [125.0, 37.8], [129.5, 37.8], [129.5, 38.2], 
+                                [125.0, 38.2], [125.0, 37.8]
+                            ]]
+                        },
                         "name": {
                             "en": "Demilitarized Zone (DMZ)",
                             "ko": "비무장지대"
@@ -481,6 +631,14 @@
                     "properties": {
                         "id": "oreum",
                         "type": "volcanic",
+                        "zoomLevel": 11,
+                        "highlightGeometry": {
+                            "type": "MultiPoint",
+                            "coordinates": [
+                                [126.7, 33.4], [126.8, 33.5], [126.9, 33.6], 
+                                [126.6, 33.3], [127.0, 33.7]
+                            ]
+                        },
                         "name": {
                             "en": "Oreum Volcanic Cones",
                             "ko": "제주 오름"
@@ -504,6 +662,14 @@
                     "properties": {
                         "id": "sobaek",
                         "type": "mountain",
+                        "zoomLevel": 7,
+                        "highlightGeometry": {
+                            "type": "LineString",
+                            "coordinates": [
+                                [127.5, 36.0], [127.7, 36.2], [127.9, 36.4], 
+                                [128.1, 36.6], [128.3, 36.8], [128.5, 37.0]
+                            ]
+                        },
                         "name": {
                             "en": "Sobaek Mountains",
                             "ko": "소백산맥"
@@ -527,6 +693,14 @@
                     "properties": {
                         "id": "seorak",
                         "type": "mountain",
+                        "zoomLevel": 10,
+                        "highlightGeometry": {
+                            "type": "Polygon",
+                            "coordinates": [[
+                                [128.2, 37.9], [128.6, 37.9], [128.6, 38.3], 
+                                [128.2, 38.3], [128.2, 37.9]
+                            ]]
+                        },
                         "name": {
                             "en": "Seoraksan",
                             "ko": "설악산"
@@ -629,20 +803,6 @@
                 }
             });
 
-            // Add labels layer
-            map.addLayer({
-                'id': 'landforms-labels',
-                'type': 'symbol',
-                'source': 'landforms',
-                'layout': {
-                    'text-field': ['get', ['literal', currentLanguage], ['get', 'name']],
-                    'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-                    'text-size': 12,
-                    'text-offset': [0, 2],
-                    'text-anchor': 'top'
-                },
-                'paint': {
-                    'text-color': '#ffffff',
                     'text-halo-color': '#000000',
                     'text-halo-width': 1
                 }
@@ -651,15 +811,47 @@
             // Add click handlers
             map.on('click', 'landforms-layer', (e) => {
                 const feature = e.features[0];
-                showLandformInfo(feature.properties);
+                const properties = feature.properties;
                 
-                // Fly to the clicked feature
-                map.flyTo({
-                    center: feature.geometry.coordinates,
-                    zoom: 8,
-                    pitch: 60,
-                    duration: 2000
-                });
+                // Show landform info
+                showLandformInfo(properties);
+                
+                // Highlight the landform
+                highlightLandform(properties);
+                
+                // Calculate bounds for the highlight geometry
+                const highlightGeom = properties.highlightGeometry;
+                const zoomLevel = properties.zoomLevel || 8;
+                
+                if (highlightGeom) {
+                    let bounds = new mapboxgl.LngLatBounds();
+                    
+                    if (highlightGeom.type === 'Polygon') {
+                        highlightGeom.coordinates[0].forEach(coord => bounds.extend(coord));
+                    } else if (highlightGeom.type === 'LineString') {
+                        highlightGeom.coordinates.forEach(coord => bounds.extend(coord));
+                    } else if (highlightGeom.type === 'MultiPoint') {
+                        highlightGeom.coordinates.forEach(coord => bounds.extend(coord));
+                    } else {
+                        // For point or if no highlight geometry, use the marker position
+                        bounds.extend(feature.geometry.coordinates);
+                    }
+                    
+                    // Fly to bounds with padding
+                    map.fitBounds(bounds, {
+                        padding: 100,
+                        maxZoom: zoomLevel,
+                        duration: 2000
+                    });
+                } else {
+                    // Fallback to simple fly to
+                    map.flyTo({
+                        center: feature.geometry.coordinates,
+                        zoom: zoomLevel,
+                        pitch: 60,
+                        duration: 2000
+                    });
+                }
             });
 
             // Change cursor on hover
@@ -702,6 +894,34 @@
             });
         }
 
+        function highlightLandform(properties) {
+            const highlightGeom = properties.highlightGeometry;
+            
+            if (highlightGeom) {
+                const highlightFeature = {
+                    'type': 'Feature',
+                    'geometry': highlightGeom,
+                    'properties': {}
+                };
+                
+                // Update highlight source
+                map.getSource('highlight').setData({
+                    'type': 'FeatureCollection',
+                    'features': [highlightFeature]
+                });
+                
+                // Auto-remove highlight after 5 seconds
+                setTimeout(() => {
+                    if (map.getSource('highlight')) {
+                        map.getSource('highlight').setData({
+                            'type': 'FeatureCollection',
+                            'features': []
+                        });
+                    }
+                }, 5000);
+            }
+        }
+
         function showLandformInfo(properties) {
             const panel = document.getElementById('infoPanel');
             
@@ -728,6 +948,14 @@
             // Close info panel
             document.getElementById('closeBtn').addEventListener('click', function() {
                 document.getElementById('infoPanel').classList.remove('active');
+                
+                // Clear highlight when closing panel
+                if (map && map.getSource('highlight')) {
+                    map.getSource('highlight').setData({
+                        'type': 'FeatureCollection',
+                        'features': []
+                    });
+                }
             });
 
             // About button (placeholder)
