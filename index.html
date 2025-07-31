@@ -107,7 +107,96 @@ function addLandformsToMap() {
                     'text-anchor': 'top'
                 },
                 'paint': {
-                    'text-color': '#ffffff',
+                    'text-halo-color': '#000000',
+                    'text-halo-width': 1
+                }
+            });
+
+            // Add click handlers
+            map.on('click', 'landforms-layer', (e) => {
+                const feature = e.features[0];
+                const properties = feature.properties;
+                
+                // Show landform info
+                showLandformInfo(properties);
+                
+                // Highlight the landform
+                highlightLandform(properties);
+                
+                // Calculate bounds for the highlight geometry
+                const highlightGeom = properties.highlightGeometry;
+                const zoomLevel = properties.zoomLevel || 8;
+                
+                if (highlightGeom) {
+                    let bounds = new mapboxgl.LngLatBounds();
+                    
+                    if (highlightGeom.type === 'Polygon') {
+                        highlightGeom.coordinates[0].forEach(coord => bounds.extend(coord));
+                    } else if (highlightGeom.type === 'LineString') {
+                        highlightGeom.coordinates.forEach(coord => bounds.extend(coord));
+                    } else if (highlightGeom.type === 'MultiPoint') {
+                        highlightGeom.coordinates.forEach(coord => bounds.extend(coord));
+                    } else {
+                        // For point or if no highlight geometry, use the marker position
+                        bounds.extend(feature.geometry.coordinates);
+                    }
+                    
+                    // Fly to bounds with padding
+                    map.fitBounds(bounds, {
+                        padding: 100,
+                        maxZoom: zoomLevel,
+                        duration: 2000
+                    });
+                } else {
+                    // Fallback to simple fly to
+                    map.flyTo({
+                        center: feature.geometry.coordinates,
+                        zoom: zoomLevel,
+                        pitch: 60,
+                        duration: 2000
+                    });
+                }
+            });
+
+            // Change cursor on hover
+            map.on('mouseenter', 'landforms-layer', () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+
+            map.on('mouseleave', 'landforms-layer', () => {
+                map.getCanvas().style.cursor = '';
+            });
+
+            // Add popup on hover
+            map.on('mouseenter', 'landforms-layer', (e) => {
+                const feature = e.features[0];
+                const coordinates = feature.geometry.coordinates.slice();
+                const nameData = feature.properties.name;
+                const name = typeof nameData === 'string' ? JSON.parse(nameData) : nameData;
+
+                if (activePopup) {
+                    activePopup.remove();
+                }
+
+                activePopup = new mapboxgl.Popup({
+                    closeButton: false,
+                    closeOnClick: false
+                })
+                .setLngLat(coordinates)
+                .setHTML(`
+                    <div class="popup-title">${name[currentLanguage] || name.en || 'Unknown'}</div>
+                    <div class="popup-subtitle">${currentLanguage === 'en' ? 'Click to learn more' : '자세히 알아보려면 클릭하세요'}</div>
+                `)
+                .addTo(map);
+            });
+
+            map.on('mouseleave', 'landforms-layer', () => {
+                if (activePopup) {
+                    activePopup.remove();
+                    activePopup = null;
+                }
+            });
+        }
                     'text-halo-color': '#000000<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -885,14 +974,6 @@ function addLandformsToMap() {
                 `)
                 .addTo(map);
             });
-
-            map.on('mouseleave', 'landforms-layer', () => {
-                if (activePopup) {
-                    activePopup.remove();
-                    activePopup = null;
-                }
-            });
-        }
 
         function highlightLandform(properties) {
             const highlightGeom = properties.highlightGeometry;
