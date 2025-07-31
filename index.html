@@ -1,203 +1,4 @@
-function addLandformsToMap() {
-            // Add source
-            map.addSource('landforms', {
-                'type': 'geojson',
-                'data': landformsData
-            });
-
-            // Add highlight source (initially empty)
-            map.addSource('highlight', {
-                'type': 'geojson',
-                'data': {
-                    'type': 'FeatureCollection',
-                    'features': []
-                }
-            });
-
-            // Add highlight layers for different geometry types
-            map.addLayer({
-                'id': 'highlight-line',
-                'type': 'line',
-                'source': 'highlight',
-                'filter': ['==', '$type', 'LineString'],
-                'paint': {
-                    'line-color': '#ff6b6b',
-                    'line-width': 4,
-                    'line-opacity': 0.8
-                }
-            });
-
-            map.addLayer({
-                'id': 'highlight-polygon',
-                'type': 'fill',
-                'source': 'highlight',
-                'filter': ['==', '$type', 'Polygon'],
-                'paint': {
-                    'fill-color': '#ff6b6b',
-                    'fill-opacity': 0.3,
-                    'fill-outline-color': '#ff6b6b'
-                }
-            });
-
-            map.addLayer({
-                'id': 'highlight-polygon-outline',
-                'type': 'line',
-                'source': 'highlight',
-                'filter': ['==', '$type', 'Polygon'],
-                'paint': {
-                    'line-color': '#ff6b6b',
-                    'line-width': 3,
-                    'line-opacity': 0.8
-                }
-            });
-
-            map.addLayer({
-                'id': 'highlight-point',
-                'type': 'circle',
-                'source': 'highlight',
-                'filter': ['==', '$type', 'Point'],
-                'paint': {
-                    'circle-color': '#ff6b6b',
-                    'circle-radius': 12,
-                    'circle-opacity': 0.6,
-                    'circle-stroke-color': '#ffffff',
-                    'circle-stroke-width': 3
-                }
-            });
-
-            // Add markers layer
-            map.addLayer({
-                'id': 'landforms-layer',
-                'type': 'circle',
-                'source': 'landforms',
-                'paint': {
-                    'circle-radius': [
-                        'interpolate',
-                        ['linear'],
-                        ['zoom'],
-                        5, 8,
-                        10, 15
-                    ],
-                    'circle-color': [
-                        'match',
-                        ['get', 'type'],
-                        'volcanic', '#e74c3c',
-                        'mountain', '#27ae60',
-                        'water', '#3498db',
-                        'coastal', '#f39c12',
-                        'special', '#9b59b6',
-                        '#34495e'
-                    ],
-                    'circle-stroke-width': 2,
-                    'circle-stroke-color': '#ffffff',
-                    'circle-opacity': 0.8
-                }
-            });
-
-            // Add labels layer
-            map.addLayer({
-                'id': 'landforms-labels',
-                'type': 'symbol',
-                'source': 'landforms',
-                'layout': {
-                    'text-field': ['get', ['literal', currentLanguage], ['get', 'name']],
-                    'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-                    'text-size': 12,
-                    'text-offset': [0, 2],
-                    'text-anchor': 'top'
-                },
-                'paint': {
-                    'text-halo-color': '#000000',
-                    'text-halo-width': 1
-                }
-            });
-
-            // Add click handlers
-            map.on('click', 'landforms-layer', (e) => {
-                const feature = e.features[0];
-                const properties = feature.properties;
-                
-                // Show landform info
-                showLandformInfo(properties);
-                
-                // Highlight the landform
-                highlightLandform(properties);
-                
-                // Calculate bounds for the highlight geometry
-                const highlightGeom = properties.highlightGeometry;
-                const zoomLevel = properties.zoomLevel || 8;
-                
-                if (highlightGeom) {
-                    let bounds = new mapboxgl.LngLatBounds();
-                    
-                    if (highlightGeom.type === 'Polygon') {
-                        highlightGeom.coordinates[0].forEach(coord => bounds.extend(coord));
-                    } else if (highlightGeom.type === 'LineString') {
-                        highlightGeom.coordinates.forEach(coord => bounds.extend(coord));
-                    } else if (highlightGeom.type === 'MultiPoint') {
-                        highlightGeom.coordinates.forEach(coord => bounds.extend(coord));
-                    } else {
-                        // For point or if no highlight geometry, use the marker position
-                        bounds.extend(feature.geometry.coordinates);
-                    }
-                    
-                    // Fly to bounds with padding
-                    map.fitBounds(bounds, {
-                        padding: 100,
-                        maxZoom: zoomLevel,
-                        duration: 2000
-                    });
-                } else {
-                    // Fallback to simple fly to
-                    map.flyTo({
-                        center: feature.geometry.coordinates,
-                        zoom: zoomLevel,
-                        pitch: 60,
-                        duration: 2000
-                    });
-                }
-            });
-
-            // Change cursor on hover
-            map.on('mouseenter', 'landforms-layer', () => {
-                map.getCanvas().style.cursor = 'pointer';
-            });
-
-            map.on('mouseleave', 'landforms-layer', () => {
-                map.getCanvas().style.cursor = '';
-            });
-
-            // Add popup on hover
-            map.on('mouseenter', 'landforms-layer', (e) => {
-                const feature = e.features[0];
-                const coordinates = feature.geometry.coordinates.slice();
-                const nameData = feature.properties.name;
-                const name = typeof nameData === 'string' ? JSON.parse(nameData) : nameData;
-
-                if (activePopup) {
-                    activePopup.remove();
-                }
-
-                activePopup = new mapboxgl.Popup({
-                    closeButton: false,
-                    closeOnClick: false
-                })
-                .setLngLat(coordinates)
-                .setHTML(`
-                    <div class="popup-title">${name[currentLanguage] || name.en || 'Unknown'}</div>
-                    <div class="popup-subtitle">${currentLanguage === 'en' ? 'Click to learn more' : '자세히 알아보려면 클릭하세요'}</div>
-                `)
-                .addTo(map);
-            });
-
-            map.on('mouseleave', 'landforms-layer', () => {
-                if (activePopup) {
-                    activePopup.remove();
-                    activePopup = null;
-                }
-            });
-        }
-                    'text-halo-color': '#000000<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -552,7 +353,7 @@ function addLandformsToMap() {
             }
         };
 
-        // Enhanced landforms data with geometries for highlighting
+        // Enhanced landforms data
         const landformsData = {
             "type": "FeatureCollection",
             "features": [
@@ -826,7 +627,7 @@ function addLandformsToMap() {
             map = new mapboxgl.Map({
                 container: 'map',
                 style: 'mapbox://styles/mapbox/satellite-streets-v12',
-                center: [127.5, 36.0], // Center of South Korea
+                center: [127.5, 36.0],
                 zoom: 6.5,
                 pitch: 45,
                 bearing: 0,
@@ -863,6 +664,66 @@ function addLandformsToMap() {
                 'data': landformsData
             });
 
+            // Add highlight source
+            map.addSource('highlight', {
+                'type': 'geojson',
+                'data': {
+                    'type': 'FeatureCollection',
+                    'features': []
+                }
+            });
+
+            // Add highlight layers
+            map.addLayer({
+                'id': 'highlight-line',
+                'type': 'line',
+                'source': 'highlight',
+                'filter': ['==', '$type', 'LineString'],
+                'paint': {
+                    'line-color': '#ff6b6b',
+                    'line-width': 4,
+                    'line-opacity': 0.8
+                }
+            });
+
+            map.addLayer({
+                'id': 'highlight-polygon',
+                'type': 'fill',
+                'source': 'highlight',
+                'filter': ['==', '$type', 'Polygon'],
+                'paint': {
+                    'fill-color': '#ff6b6b',
+                    'fill-opacity': 0.3,
+                    'fill-outline-color': '#ff6b6b'
+                }
+            });
+
+            map.addLayer({
+                'id': 'highlight-polygon-outline',
+                'type': 'line',
+                'source': 'highlight',
+                'filter': ['==', '$type', 'Polygon'],
+                'paint': {
+                    'line-color': '#ff6b6b',
+                    'line-width': 3,
+                    'line-opacity': 0.8
+                }
+            });
+
+            map.addLayer({
+                'id': 'highlight-point',
+                'type': 'circle',
+                'source': 'highlight',
+                'filter': ['==', '$type', 'Point'],
+                'paint': {
+                    'circle-color': '#ff6b6b',
+                    'circle-radius': 12,
+                    'circle-opacity': 0.6,
+                    'circle-stroke-color': '#ffffff',
+                    'circle-stroke-width': 3
+                }
+            });
+
             // Add markers layer
             map.addLayer({
                 'id': 'landforms-layer',
@@ -892,6 +753,20 @@ function addLandformsToMap() {
                 }
             });
 
+            // Add labels layer
+            map.addLayer({
+                'id': 'landforms-labels',
+                'type': 'symbol',
+                'source': 'landforms',
+                'layout': {
+                    'text-field': ['get', ['literal', currentLanguage], ['get', 'name']],
+                    'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                    'text-size': 12,
+                    'text-offset': [0, 2],
+                    'text-anchor': 'top'
+                },
+                'paint': {
+                    'text-color': '#ffffff',
                     'text-halo-color': '#000000',
                     'text-halo-width': 1
                 }
@@ -902,13 +777,9 @@ function addLandformsToMap() {
                 const feature = e.features[0];
                 const properties = feature.properties;
                 
-                // Show landform info
                 showLandformInfo(properties);
-                
-                // Highlight the landform
                 highlightLandform(properties);
                 
-                // Calculate bounds for the highlight geometry
                 const highlightGeom = properties.highlightGeometry;
                 const zoomLevel = properties.zoomLevel || 8;
                 
@@ -922,18 +793,15 @@ function addLandformsToMap() {
                     } else if (highlightGeom.type === 'MultiPoint') {
                         highlightGeom.coordinates.forEach(coord => bounds.extend(coord));
                     } else {
-                        // For point or if no highlight geometry, use the marker position
                         bounds.extend(feature.geometry.coordinates);
                     }
                     
-                    // Fly to bounds with padding
                     map.fitBounds(bounds, {
                         padding: 100,
                         maxZoom: zoomLevel,
                         duration: 2000
                     });
                 } else {
-                    // Fallback to simple fly to
                     map.flyTo({
                         center: feature.geometry.coordinates,
                         zoom: zoomLevel,
@@ -943,7 +811,6 @@ function addLandformsToMap() {
                 }
             });
 
-            // Change cursor on hover
             map.on('mouseenter', 'landforms-layer', () => {
                 map.getCanvas().style.cursor = 'pointer';
             });
@@ -952,7 +819,6 @@ function addLandformsToMap() {
                 map.getCanvas().style.cursor = '';
             });
 
-            // Add popup on hover
             map.on('mouseenter', 'landforms-layer', (e) => {
                 const feature = e.features[0];
                 const coordinates = feature.geometry.coordinates.slice();
@@ -975,6 +841,14 @@ function addLandformsToMap() {
                 .addTo(map);
             });
 
+            map.on('mouseleave', 'landforms-layer', () => {
+                if (activePopup) {
+                    activePopup.remove();
+                    activePopup = null;
+                }
+            });
+        }
+
         function highlightLandform(properties) {
             const highlightGeom = properties.highlightGeometry;
             
@@ -985,13 +859,11 @@ function addLandformsToMap() {
                     'properties': {}
                 };
                 
-                // Update highlight source
                 map.getSource('highlight').setData({
                     'type': 'FeatureCollection',
                     'features': [highlightFeature]
                 });
                 
-                // Auto-remove highlight after 5 seconds
                 setTimeout(() => {
                     if (map.getSource('highlight')) {
                         map.getSource('highlight').setData({
@@ -1005,8 +877,6 @@ function addLandformsToMap() {
 
         function showLandformInfo(properties) {
             const panel = document.getElementById('infoPanel');
-            
-            // Parse JSON strings if needed
             const name = typeof properties.name === 'string' ? JSON.parse(properties.name) : properties.name;
             const formation = typeof properties.formation === 'string' ? JSON.parse(properties.formation) : properties.formation;
             const climate = typeof properties.climate === 'string' ? JSON.parse(properties.climate) : properties.climate;
@@ -1019,18 +889,15 @@ function addLandformsToMap() {
         }
 
         function setupEventListeners() {
-            // Language toggle
             document.getElementById('langToggle').addEventListener('click', function() {
                 currentLanguage = currentLanguage === 'en' ? 'ko' : 'en';
                 updateLanguage();
                 updateMapLabels();
             });
 
-            // Close info panel
             document.getElementById('closeBtn').addEventListener('click', function() {
                 document.getElementById('infoPanel').classList.remove('active');
                 
-                // Clear highlight when closing panel
                 if (map && map.getSource('highlight')) {
                     map.getSource('highlight').setData({
                         'type': 'FeatureCollection',
@@ -1039,7 +906,6 @@ function addLandformsToMap() {
                 }
             });
 
-            // About button (placeholder)
             document.getElementById('aboutBtn').addEventListener('click', function(e) {
                 e.preventDefault();
                 alert(currentLanguage === 'en' ? 
@@ -1064,7 +930,6 @@ function addLandformsToMap() {
             document.getElementById('legend-special').textContent = t.legendSpecial;
             document.getElementById('loading-text').textContent = t.loadingText;
             
-            // Update info panel default text
             const infoPanel = document.getElementById('infoPanel');
             if (!infoPanel.classList.contains('active')) {
                 document.getElementById('formation-text').textContent = t.clickToLearn;
@@ -1079,54 +944,6 @@ function addLandformsToMap() {
                 );
             }
         }
-
-        // Add some educational animations
-        function animateToRandomLandform() {
-            const features = landformsData.features;
-            const randomFeature = features[Math.floor(Math.random() * features.length)];
-            
-            map.flyTo({
-                center: randomFeature.geometry.coordinates,
-                zoom: 9,
-                pitch: 60,
-                bearing: Math.random() * 360,
-                duration: 3000
-            });
-            
-            setTimeout(() => {
-                showLandformInfo(randomFeature.properties);
-            }, 2000);
-        }
-
-        // Optional: Add a tour mode (can be activated by a button)
-        function startTour() {
-            let currentIndex = 0;
-            const features = landformsData.features;
-            
-            function visitNext() {
-                if (currentIndex >= features.length) {
-                    currentIndex = 0;
-                }
-                
-                const feature = features[currentIndex];
-                map.flyTo({
-                    center: feature.geometry.coordinates,
-                    zoom: 8,
-                    pitch: 50,
-                    duration: 2000
-                });
-                
-                setTimeout(() => {
-                    showLandformInfo(feature.properties);
-                    currentIndex++;
-                    setTimeout(visitNext, 5000);
-                }, 2000);
-            }
-            
-            visitNext();
-        }
-
-        // App is ready to use with valid Mapbox token!
     </script>
 </body>
 </html>
